@@ -1,8 +1,12 @@
 import { Component, OnInit, ViewEncapsulation } from '@angular/core';
 import { Router } from '@angular/router';
+import { SwUpdate } from '@angular/service-worker';
+
+import { MenuController, Platform, ToastController } from '@ionic/angular';
+
 import { SplashScreen } from '@ionic-native/splash-screen/ngx';
 import { StatusBar } from '@ionic-native/status-bar/ngx';
-import { Events, MenuController, Platform } from '@ionic/angular';
+
 import { Storage } from '@ionic/storage';
 
 import { UserData } from './providers/user-data';
@@ -37,23 +41,41 @@ export class AppComponent implements OnInit {
     }
   ];
   loggedIn = false;
+  dark = false;
 
   constructor(
-    private events: Events,
     private menu: MenuController,
     private platform: Platform,
     private router: Router,
     private splashScreen: SplashScreen,
     private statusBar: StatusBar,
     private storage: Storage,
-    private userData: UserData
+    private userData: UserData,
+    private swUpdate: SwUpdate,
+    private toastCtrl: ToastController,
   ) {
     this.initializeApp();
   }
 
-  ngOnInit() {
+  async ngOnInit() {
     this.checkLoginStatus();
     this.listenForLoginEvents();
+
+    this.swUpdate.available.subscribe(async res => {
+      const toast = await this.toastCtrl.create({
+        message: 'Update available!',
+        showCloseButton: true,
+        position: 'bottom',
+        closeButtonText: `Reload`
+      });
+
+      await toast.present();
+
+      toast
+        .onDidDismiss()
+        .then(() => this.swUpdate.activateUpdate())
+        .then(() => window.location.reload());
+    });
   }
 
   initializeApp() {
@@ -76,15 +98,15 @@ export class AppComponent implements OnInit {
   }
 
   listenForLoginEvents() {
-    this.events.subscribe('user:login', () => {
+    window.addEventListener('user:login', () => {
       this.updateLoggedInStatus(true);
     });
 
-    this.events.subscribe('user:signup', () => {
+    window.addEventListener('user:signup', () => {
       this.updateLoggedInStatus(true);
     });
 
-    this.events.subscribe('user:logout', () => {
+    window.addEventListener('user:logout', () => {
       this.updateLoggedInStatus(false);
     });
   }
